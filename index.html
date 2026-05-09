@@ -444,26 +444,44 @@
     document.getElementById('today-date').textContent =
       'Hoje é ' + new Date().toLocaleDateString('pt-BR', { weekday:'long', day:'numeric', month:'long', year:'numeric' });
 
-    // ── TRADUÇÃO VIA CLAUDE API ──
+    // ── TRADUÇÃO VIA MYMEMORY API (gratuita, sem chave) ──
+    async function translateChunk(text) {
+      const url = 'https://api.mymemory.translated.net/get?q=' + encodeURIComponent(text.trim()) + '&langpair=en|pt-BR';
+      const res = await fetch(url);
+      if (!res.ok) throw new Error('falha');
+      const d = await res.json();
+      if (d.responseStatus !== 200) throw new Error('status ' + d.responseStatus);
+      return d.responseData.translatedText;
+    }
+
+    // Quebra em sentenças para respeitar limite de ~450 chars por chamada
+    async function translateLong(text) {
+      const MAX = 450;
+      if (text.length <= MAX) return translateChunk(text);
+      // divide por frases (. ! ?)
+      const sentences = text.match(/[^.!?]+[.!?]+/g) || [text];
+      const groups = [];
+      let current = '';
+      for (const s of sentences) {
+        if ((current + s).length > MAX && current) {
+          groups.push(current.trim());
+          current = s;
+        } else {
+          current += s;
+        }
+      }
+      if (current.trim()) groups.push(current.trim());
+      const parts = await Promise.all(groups.map(g => translateChunk(g)));
+      return parts.join(' ');
+    }
+
     async function translate(title, explanation) {
       try {
-        const res = await fetch('https://api.anthropic.com/v1/messages', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            model: 'claude-sonnet-4-20250514',
-            max_tokens: 1000,
-            messages: [{
-              role: 'user',
-              content: 'Traduza o título e a descrição abaixo para o português brasileiro de forma natural e fluida. Responda APENAS com JSON no formato {"titulo":"...","descricao":"..."} sem mais nada.\n\nTÍTULO: ' + title + '\n\nDESCRIÇÃO: ' + explanation
-            }]
-          })
-        });
-        if (!res.ok) return null;
-        const d = await res.json();
-        const text = (d.content || []).map(b => b.text || '').join('');
-        const clean = text.replace(/```json|```/g, '').trim();
-        return JSON.parse(clean);
+        const [titulo, descricao] = await Promise.all([
+          translateChunk(title),
+          translateLong(explanation)
+        ]);
+        return { titulo, descricao };
       } catch(e) { return null; }
     }
 
@@ -535,9 +553,9 @@
 
     // ── GALLERY ──
     const photos = [
-      './img/00.jpg','./img/01.jpg','./img/02.jpg','./img/03.jpg',
-      './img/04.jpg','./img/05.jpg','./img/06.jpg','./img/07.jpg',
-      './img/08.jpg','./img/09.jpg','./img/10.jpg','./img/11.jpg',
+      './img/00.jpg','./img/01.jpg','./img/02.webp','./img/03.webp',
+      './img/04.webp','./img/05.webp','./img/06.jpg','./img/07.jpg',
+      './img/08.jpg','./img/09.jpg','./img/010.jpg','./img/011.jpg',
     ];
     const gallery = document.getElementById('gallery');
     photos.forEach(src => {
