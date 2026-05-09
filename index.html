@@ -683,6 +683,458 @@
         <span class="date-selector-label">📅 Escolher data:</span>
         <select class="date-select" id="nasa-date-select">
           <option value="2024-05-06">06/05/2024 — Início do namoro 💜</option>
+          <option value="2024-07-06">06/07/2024 — 2 meses juntos</option>
+          <option value="2024-08-08">08/08/2024 — Pedido de namoro 💜</option>
+          <option value="2024-09-06">06/09/2024 — 4 meses juntos</option>
+          <option value="2024-11-06">06/11/2024 — 6 meses juntos 🎉</option>
+          <option value="2025-01-06">06/01/2025 — 8 meses juntos</option>
+          <option value="2025-03-06">06/03/2025 — 10 meses juntos</option>
+          <option value="2025-05-06">06/05/2025 — 1 ano juntos 🥂</option>
+          <option value="2025-07-06">06/07/2025 — 14 meses juntos</option>
+          <option value="2025-09-06">06/09/2025 — 16 meses juntos</option>
+          <option value="2025-11-06">06/11/2025 — 18 meses juntos</option>
+          <option value="2026-01-06">06/01/2026 — 20 meses juntos</option>
+          <option value="2026-03-06">06/03/2026 — 22 meses juntos</option>
+          <option value="2026-05-06">06/05/2026 — 2 anos juntos ❤️</option>
+        </select>
+      </div>
+
+      <div class="nasa-skeleton" id="nasa-skeleton">
+        <div class="skeleton-block" style="height:300px;border-radius:14px;"></div>
+        <div class="skeleton-block" style="height:22px;width:60%;"></div>
+        <div class="skeleton-block" style="height:14px;width:40%;"></div>
+        <div class="skeleton-block" style="height:80px;"></div>
+      </div>
+
+      <div id="nasa-content" style="display:none">
+        <img id="nasa-img" alt="Foto da NASA">
+        <div id="nasa-video-wrap" style="display:none;margin-bottom:18px;">
+          <a id="nasa-video-link" href="#" target="_blank"
+             style="display:inline-block;background:linear-gradient(135deg,#e8637a,#7c5cbf);border-radius:12px;padding:12px 22px;color:#fff;text-decoration:none;font-weight:600;font-size:0.95rem;">
+            ▶ Assistir no YouTube
+          </a>
+        </div>
+        <p class="nasa-heading" id="nasa-title"></p>
+        <div style="display:flex;gap:8px;margin-bottom:16px;flex-wrap:wrap;">
+          <span class="pill" id="nasa-date-pill"></span>
+          <span class="pill" id="nasa-copy"></span>
+        </div>
+        <p class="nasa-text" id="nasa-desc"></p>
+      </div>
+    </div>
+
+    <!-- GALLERY CARD -->
+    <div class="card" style="animation-delay:0.2s">
+      <div class="card-title"><span>📸</span> Nossos momentos</div>
+      <div class="gallery" id="gallery"></div>
+    </div>
+
+  </div>
+
+  <script>
+    // ── STARS ──
+    (function() {
+      const c = document.getElementById('stars');
+      for (let i = 0; i < 140; i++) {
+        const s = document.createElement('div');
+        s.className = 'star';
+        const sz = Math.random() * 2.2 + 0.5;
+        s.style.cssText = `width:${sz}px;height:${sz}px;top:${Math.random()*100}%;left:${Math.random()*100}%;--d:${(Math.random()*3+2).toFixed(1)}s;animation-delay:${(Math.random()*4).toFixed(1)}s;`;
+        c.appendChild(s);
+      }
+    })();
+
+    // ── TIMER — início em 06/05/2024 às 13:00 (horário de Brasília) ──
+    const startDate = new Date('2024-05-06T13:00:00-03:00');
+    function pad(n) { return String(n).padStart(2, '0'); }
+    function tick() {
+      const diff = Date.now() - startDate.getTime();
+      document.getElementById('t-days').textContent  = Math.floor(diff / 86400000);
+      document.getElementById('t-hours').textContent = pad(Math.floor((diff / 3600000) % 24));
+      document.getElementById('t-min').textContent   = pad(Math.floor((diff / 60000) % 60));
+      document.getElementById('t-sec').textContent   = pad(Math.floor((diff / 1000) % 60));
+    }
+    tick(); setInterval(tick, 1000);
+
+    document.getElementById('today-date').textContent =
+      'Hoje é ' + new Date().toLocaleDateString('pt-BR', { weekday:'long', day:'numeric', month:'long', year:'numeric' });
+
+    // ── TRADUÇÃO VIA MYMEMORY ──
+    async function translateChunk(text) {
+      const url = 'https://api.mymemory.translated.net/get?q=' + encodeURIComponent(text.trim()) + '&langpair=en|pt-BR';
+      const res = await fetch(url);
+      if (!res.ok) throw new Error('falha');
+      const d = await res.json();
+      if (d.responseStatus !== 200) throw new Error('status ' + d.responseStatus);
+      return d.responseData.translatedText;
+    }
+
+    async function translateLong(text) {
+      const MAX = 450;
+      if (text.length <= MAX) return translateChunk(text);
+      const sentences = text.match(/[^.!?]+[.!?]+/g) || [text];
+      const groups = []; let cur = '';
+      for (const s of sentences) {
+        if ((cur + s).length > MAX && cur) { groups.push(cur.trim()); cur = s; }
+        else { cur += s; }
+      }
+      if (cur.trim()) groups.push(cur.trim());
+      const parts = await Promise.all(groups.map(g => translateChunk(g)));
+      return parts.join(' ');
+    }
+
+    async function translate(title, explanation) {
+      try {
+        const [titulo, descricao] = await Promise.all([
+          translateChunk(title),
+          translateLong(explanation)
+        ]);
+        return { titulo, descricao };
+      } catch(e) { return null; }
+    }
+
+    // ── NASA APOD ──
+    const NASA_KEYS = ['Hjl5ZWDhnopXInpc0GyaJe5JrGfKbAXOXYCOCxmY', 'DEMO_KEY'];
+    let reqCounter = 0;
+
+    async function loadNASA(date) {
+      const myReq = ++reqCounter;
+
+      // Reset visual
+      const skeleton = document.getElementById('nasa-skeleton');
+      const content  = document.getElementById('nasa-content');
+      const img      = document.getElementById('nasa-img');
+      skeleton.style.display = 'flex';
+      skeleton.innerHTML = `
+        <div class="skeleton-block" style="height:300px;border-radius:14px;"></div>
+        <div class="skeleton-block" style="height:22px;width:60%;"></div>
+        <div class="skeleton-block" style="height:14px;width:40%;"></div>
+        <div class="skeleton-block" style="height:80px;"></div>`;
+      content.style.display = 'none';
+      img.classList.remove('loaded');
+      img.src = '';
+
+      let data = null;
+      for (const KEY of NASA_KEYS) {
+        try {
+          const r = await fetch('https://api.nasa.gov/planetary/apod?api_key=' + KEY + '&date=' + date);
+          if (!r.ok) continue;
+          const d = await r.json();
+          if (d && !d.error) { data = d; break; }
+        } catch(e) {}
+      }
+
+      if (myReq !== reqCounter) return; // usuário já trocou de data
+
+      if (!data) {
+        skeleton.innerHTML = `
+          <p style="color:rgba(255,255,255,0.5);font-size:0.95rem;text-align:center;padding:20px 0;">
+            Não foi possível carregar a imagem da NASA para esta data.<br>
+            <small>Confira em <a href="https://apod.nasa.gov" target="_blank" style="color:#b39ddb;">apod.nasa.gov</a></small>
+          </p>`;
+        return;
+      }
+
+      skeleton.style.display = 'none';
+      content.style.display  = 'block';
+
+      // Exibe em inglês imediatamente
+      const titleEl = document.getElementById('nasa-title');
+      const descEl  = document.getElementById('nasa-desc');
+      titleEl.textContent = data.title || '';
+      titleEl.style.opacity = '0.5';
+      document.getElementById('nasa-date-pill').textContent = '📅 ' + (data.date || date);
+      document.getElementById('nasa-copy').textContent = data.copyright ? '© ' + data.copyright.trim() : 'NASA / Public Domain';
+      descEl.textContent = data.explanation || '';
+      descEl.style.opacity = '0.5';
+      document.getElementById('nasa-video-wrap').style.display = 'none';
+
+      if (data.media_type === 'image') {
+        img.src = data.hdurl || data.url;
+        img.onload = () => { if (myReq === reqCounter) img.classList.add('loaded'); };
+      } else if (data.media_type === 'video') {
+        document.getElementById('nasa-video-wrap').style.display = 'block';
+        document.getElementById('nasa-video-link').href = data.url;
+      }
+
+      // Traduz em paralelo
+      const translated = await translate(data.title || '', data.explanation || '');
+      if (myReq !== reqCounter) return;
+
+      if (translated) {
+        if (translated.titulo)    titleEl.textContent = translated.titulo;
+        if (translated.descricao) descEl.textContent  = translated.descricao;
+      }
+      titleEl.style.opacity = '1';
+      descEl.style.opacity  = '1';
+    }
+
+    const sel = document.getElementById('nasa-date-select');
+    loadNASA(sel.value);
+    sel.addEventListener('change', () => loadNASA(sel.value));
+
+    // ── GALLERY ──
+    const photos = [
+      './img/00.jpg','./img/01.jpg','./img/02.webp','./img/03.webp',
+      './img/04.webp','./img/05.webp','./img/06.jpg','./img/07.jpg',
+      './img/08.jpg','./img/09.jpg','./img/010.jpg','./img/011.jpg',
+    ];
+    const gallery = document.getElementById('gallery');
+    photos.forEach(src => {
+      const item = document.createElement('div');
+      item.className = 'gallery-item';
+      const im = document.createElement('img');
+      im.src = src; im.alt = ''; im.loading = 'lazy';
+      im.addEventListener('click', () => openLightbox(src));
+      item.appendChild(im);
+      gallery.appendChild(item);
+    });
+
+    // ── LIGHTBOX ──
+    const lb = document.getElementById('lightbox');
+    const lbImg = document.getElementById('lb-img');
+    function openLightbox(src) { lbImg.src = src; lb.classList.add('open'); }
+    document.getElementById('lb-close').addEventListener('click', () => lb.classList.remove('open'));
+    lb.addEventListener('click', e => { if (e.target === lb) lb.classList.remove('open'); });
+    document.addEventListener('keydown', e => { if (e.key === 'Escape') lb.classList.remove('open'); });
+
+    // ── FLOATING HEARTS ──
+    const heartChars = ['❤','💜','🩷','💕'];
+    function spawnHeart() {
+      const h = document.createElement('div');
+      h.className = 'heart-particle';
+      h.textContent = heartChars[Math.floor(Math.random() * heartChars.length)];
+      h.style.setProperty('--dur', (Math.random() * 4 + 5) + 's');
+      h.style.setProperty('--size', (Math.random() * 14 + 10) + 'px');
+      h.style.left = (Math.random() * 100) + 'vw';
+      document.body.appendChild(h);
+      setTimeout(() => h.remove(), 9000);
+    }
+    setInterval(spawnHeart, 400);
+  </script>
+</body>
+</html><!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>2 Anos ❤️</title>
+  <style>
+    *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+
+    :root {
+      --rose: #e8637a;
+      --rose-light: #f9a8b8;
+      --purple: #7c5cbf;
+      --purple-light: #b39ddb;
+      --bg-start: #1a0a2e;
+      --bg-mid: #2d1254;
+      --bg-end: #0d2158;
+      --glass: rgba(255,255,255,0.07);
+      --glass-border: rgba(255,255,255,0.15);
+      --text: #f0eaff;
+      --text-muted: rgba(240,234,255,0.65);
+    }
+
+    html { scroll-behavior: smooth; }
+
+    body {
+      min-height: 100vh;
+      background: linear-gradient(135deg, var(--bg-start) 0%, var(--bg-mid) 45%, var(--bg-end) 100%);
+      color: var(--text);
+      font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+      overflow-x: hidden;
+      padding: 0 0 60px;
+    }
+
+    .stars { position: fixed; inset: 0; pointer-events: none; z-index: 0; overflow: hidden; }
+    .star { position: absolute; background: white; border-radius: 50%; animation: twinkle var(--d,3s) ease-in-out infinite alternate; }
+    @keyframes twinkle {
+      from { opacity: 0.1; transform: scale(1); }
+      to   { opacity: 0.9; transform: scale(1.3); }
+    }
+
+    .heart-particle {
+      position: fixed; pointer-events: none; z-index: 1;
+      animation: floatUp var(--dur,7s) ease-in forwards;
+      font-size: var(--size,16px); opacity: 0;
+    }
+    @keyframes floatUp {
+      0%   { transform: translateY(100vh) rotate(0deg); opacity: 0; }
+      10%  { opacity: 0.8; }
+      90%  { opacity: 0.4; }
+      100% { transform: translateY(-120px) rotate(20deg); opacity: 0; }
+    }
+
+    .container { position: relative; z-index: 2; max-width: 860px; margin: 0 auto; padding: 0 20px; }
+
+    /* HERO */
+    .hero { text-align: center; padding: 70px 20px 50px; }
+    .hero-badge {
+      display: inline-block;
+      background: linear-gradient(135deg, var(--rose), var(--purple));
+      border-radius: 100px; padding: 6px 22px; font-size: 0.8rem;
+      letter-spacing: 0.12em; text-transform: uppercase; font-weight: 600;
+      margin-bottom: 24px; box-shadow: 0 4px 20px rgba(232,99,122,0.4);
+    }
+    .hero h1 {
+      font-size: clamp(2.4rem, 7vw, 4.2rem); font-weight: 700;
+      line-height: 1.15; letter-spacing: -0.02em;
+      background: linear-gradient(135deg, #fff 30%, var(--rose-light));
+      -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text;
+      margin-bottom: 18px;
+    }
+    .hero-sub { font-size: 1.1rem; color: var(--text-muted); line-height: 1.7; max-width: 520px; margin: 0 auto 40px; }
+
+    /* TIMER */
+    .timer-grid { display: flex; gap: 12px; justify-content: center; flex-wrap: wrap; margin-bottom: 10px; }
+    .timer-cell {
+      background: var(--glass); border: 1px solid var(--glass-border);
+      border-radius: 16px; padding: 18px 24px; min-width: 90px;
+      text-align: center; backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px);
+    }
+    .timer-num {
+      font-size: 2.2rem; font-weight: 700; line-height: 1;
+      background: linear-gradient(135deg, #fff, var(--rose-light));
+      -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text;
+    }
+    .timer-label { font-size: 0.7rem; letter-spacing: 0.1em; text-transform: uppercase; color: var(--text-muted); margin-top: 6px; }
+    .timer-date { font-size: 0.9rem; color: var(--text-muted); text-align: center; margin-top: 14px; }
+
+    /* CARD */
+    .card {
+      background: var(--glass); border: 1px solid var(--glass-border);
+      border-radius: 24px; padding: 36px; margin-bottom: 28px;
+      backdrop-filter: blur(14px); -webkit-backdrop-filter: blur(14px);
+      animation: fadeSlide 0.8s ease both;
+    }
+    @keyframes fadeSlide {
+      from { opacity: 0; transform: translateY(28px); }
+      to   { opacity: 1; transform: translateY(0); }
+    }
+    .card-title {
+      font-size: 1.4rem; font-weight: 600; margin-bottom: 22px;
+      display: flex; align-items: center; gap: 10px;
+    }
+    .card-title span {
+      width: 36px; height: 36px;
+      background: linear-gradient(135deg, var(--rose), var(--purple));
+      border-radius: 10px; display: flex; align-items: center; justify-content: center;
+      font-size: 1rem; flex-shrink: 0;
+    }
+
+    /* DATE SELECTOR */
+    .date-selector-wrap {
+      display: flex; align-items: center; gap: 10px;
+      margin-bottom: 24px; flex-wrap: wrap;
+    }
+    .date-selector-label {
+      font-size: 0.82rem; color: var(--text-muted);
+      text-transform: uppercase; letter-spacing: 0.08em; white-space: nowrap;
+    }
+    .date-select {
+      flex: 1; min-width: 220px;
+      background: rgba(255,255,255,0.08);
+      border: 1px solid var(--glass-border);
+      border-radius: 12px; padding: 10px 36px 10px 16px;
+      color: var(--text); font-size: 0.92rem; font-family: inherit;
+      cursor: pointer; appearance: none; -webkit-appearance: none;
+      background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath d='M1 1l5 5 5-5' stroke='%23b39ddb' stroke-width='1.5' fill='none' stroke-linecap='round'/%3E%3C/svg%3E");
+      background-repeat: no-repeat; background-position: right 14px center;
+      transition: border-color 0.2s, background-color 0.2s;
+    }
+    .date-select:hover { border-color: var(--purple-light); background-color: rgba(255,255,255,0.12); }
+    .date-select:focus { outline: none; border-color: var(--rose); }
+    .date-select option { background: #2d1254; color: var(--text); }
+
+    /* NASA */
+    #nasa-img {
+      width: 100%; border-radius: 16px; max-height: 480px;
+      object-fit: cover; margin-bottom: 20px; display: none;
+    }
+    #nasa-img.loaded { display: block; }
+    .nasa-heading { font-size: 1.2rem; font-weight: 600; line-height: 1.4; margin-bottom: 10px; transition: opacity 0.3s; }
+    .pill {
+      background: rgba(255,255,255,0.1); border: 1px solid var(--glass-border);
+      border-radius: 100px; padding: 3px 12px; font-size: 0.78rem; color: var(--text-muted);
+    }
+    .nasa-text { font-size: 0.95rem; line-height: 1.85; color: var(--text-muted); transition: opacity 0.3s; }
+
+    .nasa-skeleton { display: flex; flex-direction: column; gap: 12px; }
+    .skeleton-block { background: rgba(255,255,255,0.06); border-radius: 10px; animation: pulse 1.5s ease-in-out infinite; }
+    @keyframes pulse { 0%,100% { opacity: 0.5; } 50% { opacity: 1; } }
+
+    /* GALLERY */
+    .gallery { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 14px; }
+    .gallery-item {
+      position: relative; border-radius: 16px; overflow: hidden;
+      aspect-ratio: 4/5; cursor: pointer; background: rgba(255,255,255,0.05);
+    }
+    .gallery-item img { width: 100%; height: 100%; object-fit: cover; transition: transform 0.5s cubic-bezier(.4,0,.2,1); display: block; }
+    .gallery-item:hover img { transform: scale(1.07); }
+    .gallery-item::after {
+      content: ''; position: absolute; inset: 0;
+      background: linear-gradient(to top, rgba(0,0,0,0.35) 0%, transparent 50%);
+      opacity: 0; transition: opacity 0.3s;
+    }
+    .gallery-item:hover::after { opacity: 1; }
+
+    /* LIGHTBOX */
+    .lightbox {
+      display: none; position: fixed; inset: 0; z-index: 1000;
+      background: rgba(0,0,0,0.92); align-items: center; justify-content: center;
+      backdrop-filter: blur(8px);
+    }
+    .lightbox.open { display: flex; }
+    .lightbox img { max-width: 92vw; max-height: 88vh; border-radius: 12px; object-fit: contain; box-shadow: 0 30px 80px rgba(0,0,0,0.7); }
+    .lightbox-close {
+      position: fixed; top: 20px; right: 24px; font-size: 2rem;
+      cursor: pointer; color: white; line-height: 1; opacity: 0.7;
+      transition: opacity 0.2s; background: none; border: none; font-family: inherit;
+    }
+    .lightbox-close:hover { opacity: 1; }
+
+    @media (max-width: 600px) {
+      .card { padding: 22px 18px; }
+      .timer-cell { padding: 14px 16px; min-width: 70px; }
+      .timer-num { font-size: 1.7rem; }
+      .gallery { grid-template-columns: repeat(2, 1fr); }
+    }
+  </style>
+</head>
+<body>
+
+  <div class="stars" id="stars"></div>
+
+  <div class="lightbox" id="lightbox">
+    <button class="lightbox-close" id="lb-close">×</button>
+    <img id="lb-img" src="" alt="">
+  </div>
+
+  <div class="container">
+
+    <!-- HERO -->
+    <div class="hero">
+      <div class="hero-badge">💜 06 de maio de 2024</div>
+      <h1>Feliz<br>2 Anos, Amor</h1>
+      <p class="hero-sub">Dois anos dos melhores momentos da minha vida. Cada dia ao seu lado é a prova de que a vida fica mais bonita quando você está nela.</p>
+      <div class="timer-grid">
+        <div class="timer-cell"><div class="timer-num" id="t-days">—</div><div class="timer-label">Dias</div></div>
+        <div class="timer-cell"><div class="timer-num" id="t-hours">—</div><div class="timer-label">Horas</div></div>
+        <div class="timer-cell"><div class="timer-num" id="t-min">—</div><div class="timer-label">Minutos</div></div>
+        <div class="timer-cell"><div class="timer-num" id="t-sec">—</div><div class="timer-label">Segundos</div></div>
+      </div>
+      <p class="timer-date" id="today-date"></p>
+    </div>
+
+    <!-- NASA CARD -->
+    <div class="card" style="animation-delay:0.1s">
+      <div class="card-title"><span>🌌</span> O universo no nosso dia</div>
+
+      <div class="date-selector-wrap">
+        <span class="date-selector-label">📅 Escolher data:</span>
+        <select class="date-select" id="nasa-date-select">
+          <option value="2024-05-06">06/05/2024 — Início do namoro 💜</option>
           <option value="2024-06-06">06/06/2024 — 1 mês juntos</option>
           <option value="2024-07-06">06/07/2024 — 2 meses juntos</option>
           <option value="2024-08-06">06/08/2024 — 3 meses juntos</option>
