@@ -15,7 +15,7 @@
 
     body {
       height: 100vh;
-      background: linear-gradient(135deg, #ff758c, #ff7eb3);
+      background: linear-gradient(135deg, #4b0082, #7b2cbf);
       display: flex;
       justify-content: center;
       align-items: center;
@@ -69,7 +69,7 @@
       border: none;
       border-radius: 999px;
       background: white;
-      color: #ff4f81;
+      color: #7b2cbf;
       font-size: 1rem;
       cursor: pointer;
       font-weight: bold;
@@ -78,7 +78,7 @@
 
     button:hover {
       transform: scale(1.05);
-      background: #ffe4ec;
+      background: #efe3ff;
     }
 
     .heart {
@@ -151,7 +151,7 @@
   <script>
     // DATA DO NAMORO
     // ALTERE AQUI
-    const startDate = new Date('2024-05-09');
+    const startDate = new Date('2024-05-06');
 
     function updateTimer() {
       const now = new Date();
@@ -170,24 +170,57 @@
     setInterval(updateTimer, 1000);
     updateTimer();
 
-    // API DE FRASES
-    async function newQuote() {
+    // NASA APOD + UNSPLASH + TIMEZONE
+
+    async function loadNASA() {
       try {
-        const response = await fetch('https://api.quotable.io/random?tags=love');
+        const response = await fetch('https://api.nasa.gov/planetary/apod?api_key=DEMO_KEY');
         const data = await response.json();
 
         document.getElementById('quote').innerHTML = `
-          “${data.content}”<br><br>
-          — ${data.author}
+          🌌 ${data.title}<br><br>
+          ${data.explanation.substring(0, 180)}...
         `;
       } catch (error) {
         document.getElementById('quote').innerHTML = `
-          “Você é a melhor parte da minha vida. ❤️”
+          “Nosso amor é maior que o universo. 💜”
         `;
       }
     }
 
-    newQuote();
+    async function loadBackground() {
+      try {
+        const response = await fetch('https://api.unsplash.com/photos/random?query=romantic,purple,couple&client_id=YOUR_UNSPLASH_KEY');
+        const data = await response.json();
+
+        document.body.style.background = `
+          linear-gradient(rgba(40,0,60,0.6), rgba(40,0,60,0.6)),
+          url(${data.urls.regular}) center/cover no-repeat
+        `;
+      } catch (error) {
+        console.log('Erro ao carregar imagem');
+      }
+    }
+
+    async function loadTimeZone() {
+      try {
+        const response = await fetch('https://worldtimeapi.org/api/timezone/America/Sao_Paulo');
+        const data = await response.json();
+
+        const date = new Date(data.datetime);
+
+        document.querySelector('.subtitle').innerHTML = `
+          Dois anos vivendo os melhores momentos da minha vida ao seu lado. 💜<br><br>
+          Hoje é ${date.toLocaleDateString('pt-BR')} ✨
+        `;
+      } catch (error) {
+        console.log('Erro ao carregar horário');
+      }
+    }
+
+    loadNASA();
+    loadBackground();
+    loadTimeZone();
 
     // CORAÇÕES FLUTUANDO
     function createHeart() {
