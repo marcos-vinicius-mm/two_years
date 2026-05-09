@@ -444,19 +444,47 @@
     document.getElementById('today-date').textContent =
       'Hoje é ' + new Date().toLocaleDateString('pt-BR', { weekday:'long', day:'numeric', month:'long', year:'numeric' });
 
+    // ── TRADUÇÃO VIA CLAUDE API ──
+    async function translate(title, explanation) {
+      try {
+        const res = await fetch('https://api.anthropic.com/v1/messages', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            model: 'claude-sonnet-4-20250514',
+            max_tokens: 1000,
+            messages: [{
+              role: 'user',
+              content: 'Traduza o título e a descrição abaixo para o português brasileiro de forma natural e fluida. Responda APENAS com JSON no formato {"titulo":"...","descricao":"..."} sem mais nada.\n\nTÍTULO: ' + title + '\n\nDESCRIÇÃO: ' + explanation
+            }]
+          })
+        });
+        if (!res.ok) return null;
+        const d = await res.json();
+        const text = (d.content || []).map(b => b.text || '').join('');
+        const clean = text.replace(/```json|```/g, '').trim();
+        return JSON.parse(clean);
+      } catch(e) { return null; }
+    }
+
     // ── NASA APOD ──
-    // Uses DEMO_KEY — works reliably (40 req/hr limit, plenty for a page like this)
-    // Your previous key may have expired. Replace DEMO_KEY with a valid key from https://api.nasa.gov if you want higher limits.
     async function loadNASA() {
       const DATE = '2024-05-06';
-      const KEY  = 'DEMO_KEY';
-      const url  = `https://api.nasa.gov/planetary/apod?api_key=${'Hjl5ZWDhnopXInpc0GyaJe5JrGfKbAXOXYCOCxmY'}&date=${'2024-05-06'}`;
+      const KEYS = ['Hjl5ZWDhnopXInpc0GyaJe5JrGfKbAXOXYCOCxmY', 'DEMO_KEY'];
+      let data = null;
+      for (const KEY of KEYS) {
+        try {
+          const r = await fetch('https://api.nasa.gov/planetary/apod?api_key=' + KEY + '&date=' + DATE);
+          if (!r.ok) continue;
+          const d = await r.json();
+          if (d && !d.error) { data = d; break; }
+        } catch(e) {}
+      }
 
       try {
-        const res  = await fetch(url);
-        if (!res.ok) throw new Error(`HTTP ${res.status}`);
-        const data = await res.json();
+        if (!data) throw new Error('sem dados');
 
+        // Mostra conteúdo em inglês imediatamente enquanto traduz
         document.getElementById('nasa-skeleton').style.display = 'none';
         document.getElementById('nasa-content').style.display  = 'block';
 
@@ -475,6 +503,26 @@
           document.getElementById('nasa-video-link').href = data.url;
         }
 
+        // Inicia tradução em paralelo — atualiza quando chegar
+        if (data.title || data.explanation) {
+          document.getElementById('nasa-title').style.opacity = '0.5';
+          document.getElementById('nasa-desc').style.opacity  = '0.5';
+          const translated = await translate(data.title || '', data.explanation || '');
+          if (translated) {
+            if (translated.titulo) {
+              document.getElementById('nasa-title').textContent = translated.titulo;
+              document.getElementById('nasa-title').style.opacity = '1';
+            }
+            if (translated.descricao) {
+              document.getElementById('nasa-desc').textContent = translated.descricao;
+              document.getElementById('nasa-desc').style.opacity = '1';
+            }
+          } else {
+            document.getElementById('nasa-title').style.opacity = '1';
+            document.getElementById('nasa-desc').style.opacity  = '1';
+          }
+        }
+
       } catch (err) {
         document.getElementById('nasa-skeleton').innerHTML = `
           <p style="color:rgba(255,255,255,0.5); font-size:0.95rem; text-align:center; padding:20px 0;">
@@ -487,9 +535,9 @@
 
     // ── GALLERY ──
     const photos = [
-      './img/00.jpg','./img/01.jpg','./img/02.webp','./img/03.webp',
-      './img/04.webp','./img/05.webp','./img/06.jpg','./img/07.jpg',
-      './img/08.jpg','./img/09.jpg','./img/010.jpg','./img/011.jpg',
+      './img/00.jpg','./img/01.jpg','./img/02.jpg','./img/03.jpg',
+      './img/04.jpg','./img/05.jpg','./img/06.jpg','./img/07.jpg',
+      './img/08.jpg','./img/09.jpg','./img/10.jpg','./img/11.jpg',
     ];
     const gallery = document.getElementById('gallery');
     photos.forEach(src => {
